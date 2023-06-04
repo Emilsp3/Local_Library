@@ -45,8 +45,10 @@ module.exports = app;
 // Set up mongoose connection
 const mongoose = require("mongoose");
 mongoose.set("strictQuery", false);
-const mongoDB = "mongodb+srv://Admin:p2projekt@userdata.htaltmo.mongodb.net/?retryWrites=true&w=majority";
-
+// Set up mongoose connection
+const dev_db_url =
+  "mongodb+srv://Admin:p2projekt@userdata.htaltmo.mongodb.net/?retryWrites=true&w=majority";
+const mongoDB = process.env.MONGODB_URI || dev_db_url;
 main().catch((err) => console.log(err));
 async function main() {
   await mongoose.connect(mongoDB);
