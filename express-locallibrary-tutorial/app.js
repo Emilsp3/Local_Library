@@ -7,6 +7,7 @@ var logger = require('morgan');
 var indexRouter = require("./routes/index");
 var usersRouter = require("./routes/users");
 const catalogRouter = require("./routes/catalog"); //Import routes for "catalog" area of site
+const upload = require("express-fileupload");
 
 var app = express();
 
@@ -19,6 +20,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(upload());
+
+app.use('/images', express.static(process.cwd() + '/images'));
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
@@ -40,7 +44,7 @@ app.use(function (err, req, res, next) {
   res.render('error');
 });
 
-module.exports = app;
+
 
 // Set up mongoose connection
 const mongoose = require("mongoose");
@@ -53,3 +57,5 @@ main().catch((err) => console.log(err));
 async function main() {
   await mongoose.connect(mongoDB);
 }
+
+module.exports = app;

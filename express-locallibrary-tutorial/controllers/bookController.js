@@ -35,10 +35,20 @@ exports.index = asyncHandler(async (req, res, next) => {
 
 // Display list of all books.
 exports.book_list = asyncHandler(async (req, res, next) => {
-    const allBooks = await Book.find({}, "title author")
+    let allBooks = await Book.find({}, "title author")
         .sort({ title: 1 })
         .populate("author")
         .exec();
+
+    if (!(typeof req.query.search === 'undefined')) {
+        var search = req.query.search;
+        console.log(req.query.search);
+
+        allBooks = allBooks.filter(function (book) {
+            const regex = new RegExp(search.toLocaleLowerCase());
+            return regex.test(book.title.toLowerCase());
+        });
+    }
 
     res.render("book_list", { title: "Book List", book_list: allBooks });
 });

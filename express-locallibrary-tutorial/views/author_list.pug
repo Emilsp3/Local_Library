@@ -3,6 +3,10 @@ extends layout
 block content
   h1= title
 
+  form.search(action='', method='GET')
+    input(type='text', placeholder='Search', name='search', value=(undefined === search ? '' : search))
+    button(type='submit') Search
+
   ul
     each author in author_list
       li

@@ -1,14 +1,29 @@
 const Author = require("../models/author");
 const Book = require("../models/book");
+const upload = require("express-fileupload");
 const asyncHandler = require("express-async-handler");
+
 const { body, validationResult } = require("express-validator");
+
 
 // Display list of all Authors.
 exports.author_list = asyncHandler(async (req, res, next) => {
-    const allAuthors = await Author.find().sort({ family_name: 1 }).exec();
+    let allAuthors = await Author.find().sort({ family_name: 1 }).exec();
+
+    if (!(typeof req.query.search === 'undefined')) {
+        var search = req.query.search;
+        console.log(req.query.search);
+
+        allAuthors = allAuthors.filter(function (author) {
+            const regex = new RegExp(search.toLowerCase());
+            return regex.test(author.name.toLowerCase());
+        });
+    }
+
     res.render("author_list", {
         title: "Author List",
         author_list: allAuthors,
+        search: search,
     });
 });
 
@@ -26,6 +41,7 @@ exports.author_detail = asyncHandler(async (req, res, next) => {
         err.status = 404;
         return next(err);
     }
+
 
     res.render("author_detail", {
         title: "Author Detail",
@@ -57,11 +73,11 @@ exports.author_create_post = [
         .isAlphanumeric()
         .withMessage("Family name has non-alphanumeric characters."),
     body("date_of_birth", "Invalid date of birth")
-        .optional({ checkFalsy: true })
+        .optional({ values: "falsy" })
         .isISO8601()
         .toDate(),
     body("date_of_death", "Invalid date of death")
-        .optional({ checkFalsy: true })
+        .optional({ values: "falsy" })
         .isISO8601()
         .toDate(),
 
@@ -70,12 +86,16 @@ exports.author_create_post = [
         // Extract the validation errors from a request.
         const errors = validationResult(req);
 
+        var file = req.files.file;
+        var filename = file.name;
+
         // Create Author object with escaped and trimmed data
         const author = new Author({
             first_name: req.body.first_name,
             family_name: req.body.family_name,
             date_of_birth: req.body.date_of_birth,
             date_of_death: req.body.date_of_death,
+            image_path: "/images/" + filename,
         });
 
         if (!errors.isEmpty()) {
@@ -91,11 +111,16 @@ exports.author_create_post = [
 
             // Save author.
             await author.save();
+
+            //Upload pictures
+            file.mv("./public/images/" + filename);
+
             // Redirect to new author record.
             res.redirect(author.url);
         }
     }),
 ];
+
 
 // Display Author delete form on GET.
 exports.author_delete_get = asyncHandler(async (req, res, next) => {
@@ -142,7 +167,9 @@ exports.author_delete_post = asyncHandler(async (req, res, next) => {
 
 // Display Author update form on GET.
 exports.author_update_get = asyncHandler(async (req, res, next) => {
+    // Get book, authors and genres for form.
     const author = await Author.findById(req.params.id).exec();
+
     if (author === null) {
         // No results.
         const err = new Error("Author not found");
@@ -150,11 +177,15 @@ exports.author_update_get = asyncHandler(async (req, res, next) => {
         return next(err);
     }
 
-    res.render("author_form", { title: "Update Author", author: author });
+    res.render("author_form", {
+        title: "Update Author",
+        author: author,
+    });
 });
 
 // Handle Author update on POST.
 exports.author_update_post = [
+
     // Validate and sanitize fields.
     body("first_name")
         .trim()
@@ -184,17 +215,28 @@ exports.author_update_post = [
         // Extract the validation errors from a request.
         const errors = validationResult(req);
 
-        // Create Author object with escaped and trimmed data (and the old id!)
+        var file = req.files.file;
+        var filename = file.name;
+
+        // Create a Author object with escaped/trimmed data and old id.
         const author = new Author({
             first_name: req.body.first_name,
             family_name: req.body.family_name,
             date_of_birth: req.body.date_of_birth,
             date_of_death: req.body.date_of_death,
-            _id: req.params.id,
+            _id: req.params.id, // This is required, or a new ID will be assigned!
         });
 
+        if (req.files) {
+            var file = req.files.file;
+            var filename = file.name;
+            author.image_path = "/images/" + filename;
+            file.mv("./public/images/" + filename);
+        }
+
         if (!errors.isEmpty()) {
-            // There are errors. Render the form again with sanitized values and error messages.
+            // There are errors. Render form again with sanitized values/error messages.
+
             res.render("author_form", {
                 title: "Update Author",
                 author: author,
@@ -203,8 +245,11 @@ exports.author_update_post = [
             return;
         } else {
             // Data from form is valid. Update the record.
-            await Author.findByIdAndUpdate(req.params.id, author);
-            res.redirect(author.url);
+            const theauthor = await Author.findByIdAndUpdate(req.params.id, author, {});
+            //Upload pictures
+
+            // Redirect to book detail page.
+            res.redirect(theauthor.url);
         }
     }),
 ];
